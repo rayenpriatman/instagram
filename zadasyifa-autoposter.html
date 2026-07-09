@@ -465,7 +465,9 @@ label{display:block;font-size:12px;color:#555;margin-bottom:5px;font-weight:600;
       </div>
     </div>
     <button class="btn btn-dark" onclick="addAccount()">+ Tambah Akun</button>
+    <button class="btn" onclick="testAccIGPageConnection()">🔗 Tes Koneksi</button>
     <span id="acc-status" style="margin-left:10px;font-size:13px;"></span>
+    <div id="acc-page-st" style="font-size:12px;margin-top:8px;"></div>
   </div>
 
   <div class="card">
@@ -3168,6 +3170,34 @@ async function testConn(){
     if(d.error)throw new Error(d.error.message);
     s.innerHTML=`<span style="color:#3b6d11">✅ @${d.username||d.name}</span>`;
   }catch(e){s.innerHTML=`<span style="color:#E24B4A">❌ ${e.message}</span>`;}
+}
+
+// Cek apakah Instagram Account ID di form "Tambah Akun" benar-benar terhubung ke Facebook Page
+// (bukan cuma cek token valid, tapi cek relasi IG <-> Page-nya) — dicek SEBELUM akun disimpan
+async function testAccIGPageConnection(){
+  const token=document.getElementById('acc-token').value.trim();
+  const id=document.getElementById('acc-igid').value.trim();
+  const s=document.getElementById('acc-page-st');
+  if(!token||!id){s.innerHTML='<span style="color:#E24B4A">⚠️ Isi Instagram Account ID dan Access Token dulu</span>';return;}
+  s.innerHTML='<span class="spinner"></span> Mengecek koneksi ke Facebook Page...';
+  try{
+    // Ambil semua Page yang bisa diakses token ini, beserta IG Business Account yang terhubung ke tiap Page
+    const r = await fetch(`https://graph.facebook.com/v19.0/me/accounts?fields=name,instagram_business_account&access_token=${token}`);
+    const d = await r.json();
+    if(d.error) throw new Error(d.error.message);
+    const pages = d.data || [];
+    const match = pages.find(p => p.instagram_business_account && p.instagram_business_account.id === id);
+    if(match){
+      s.innerHTML = `<span style="color:#3b6d11">✅ Terhubung! Instagram ini terhubung ke Facebook Page <b>"${match.name}"</b></span>`;
+    } else if(pages.length > 0){
+      const pageList = pages.map(p => `${p.name}${p.instagram_business_account ? ' (IG: '+p.instagram_business_account.id+')' : ' (belum ada IG terhubung)'}`).join(', ');
+      s.innerHTML = `<span style="color:#E24B4A">⚠️ Instagram Account ID <b>${id}</b> tidak ditemukan terhubung ke Page manapun dari token ini.<br>Page yang terdeteksi: ${pageList}</span>`;
+    } else {
+      s.innerHTML = `<span style="color:#E24B4A">⚠️ Token ini tidak punya akses ke Facebook Page manapun (cek permission pages_show_list saat generate token)</span>`;
+    }
+  }catch(e){
+    s.innerHTML = `<span style="color:#E24B4A">❌ Gagal cek: ${e.message}<br><span style="color:#888">(Kalau token yang dipakai adalah Page Access Token langsung, bukan User Access Token, cek ini mungkin tidak bisa jalan — endpoint /me/accounts butuh User Token)</span></span>`;
+  }
 }
 
 function toggleTok(){const i=document.getElementById('s-token');i.type=i.type==='password'?'text':'password';}
