@@ -124,6 +124,7 @@ label{display:block;font-size:12px;color:#555;margin-bottom:5px;font-weight:600;
   <div style="display:flex;gap:8px;margin-bottom:12px;">
     <button class="btn" id="mode-generate-btn" onclick="switchMode('generate')" style="flex:1;justify-content:center;background:#1B6B3A;color:#fff;font-size:12px;padding:9px;">🎨 Generate</button>
     <button class="btn" id="mode-upload-btn" onclick="switchMode('upload')" style="flex:1;justify-content:center;background:#f0f0f0;color:#555;font-size:12px;padding:9px;">📁 Upload File</button>
+    <button class="btn" id="mode-schedule-btn" onclick="switchMode('schedule')" style="flex:1;justify-content:center;background:#f0f0f0;color:#555;font-size:12px;padding:9px;">⏰ Jadwal</button>
   </div>
 
   <!-- ── MODE: GENERATE POSTER ── -->
@@ -212,7 +213,10 @@ label{display:block;font-size:12px;color:#555;margin-bottom:5px;font-weight:600;
     <div class="field">
       <label style="display:flex;justify-content:space-between;align-items:center;">
         <span>Caption</span>
-        <button class="btn" onclick="autoCaption()" id="auto-caption-btn" style="font-size:11px;padding:4px 10px;background:linear-gradient(135deg,#6C3483,#1A3E8C);color:#fff;">✨ Auto Caption AI</button>
+        <span style="display:flex;gap:6px;">
+          <button class="btn" onclick="useCaptionTemplate()" style="font-size:11px;padding:4px 10px;background:#f0f0f0;">🎲 Pakai Template Acak</button>
+          <button class="btn" onclick="autoCaption()" id="auto-caption-btn" style="font-size:11px;padding:4px 10px;background:linear-gradient(135deg,#6C3483,#1A3E8C);color:#fff;">✨ Auto Caption AI</button>
+        </span>
       </label>
       <textarea id="local-caption" rows="4" placeholder="Tulis caption manual atau klik Auto Caption AI..." style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;resize:vertical;"></textarea>
     </div>
@@ -612,6 +616,37 @@ label{display:block;font-size:12px;color:#555;margin-bottom:5px;font-weight:600;
     </div>
   </div>
 
+  <div class="card card-primary">
+    <div class="card-title">🎲 Template Caption Acak</div>
+    <p class="hint" style="margin-bottom:12px;">Isi tiap bagian, <b>1 baris = 1 pilihan</b>. Tiap kali generate, sistem pilih 1 baris acak dari Judul, 1-2 baris acak dari Isi, 1 baris acak dari Penutup, lalu gabung hashtag acak — jadi captionnya beda-beda tiap posting. Ini dipakai otomatis kalau file Google Drive tidak punya .txt caption sendiri, dan bisa juga dipanggil manual dari tab Feed.</p>
+    <div class="field">
+      <label>Judul / Pembuka (1 baris = 1 pilihan)</label>
+      <textarea id="tpl-judul" rows="3" placeholder="✨ Zada Syifa hadir untuk kesehatan Anda!&#10;🌿 Solusi herbal alami dari Zada Syifa Nusantara&#10;💚 Sehat alami bersama Zada Syifa"></textarea>
+    </div>
+    <div class="field">
+      <label>Isi (1 baris = 1 pilihan, diambil 1-2 baris acak per caption)</label>
+      <textarea id="tpl-isi" rows="4" placeholder="Diolah dari bahan alami pilihan tanpa efek samping berbahaya.&#10;Sudah dipercaya ribuan pelanggan di seluruh Indonesia.&#10;Cocok untuk menjaga kesehatan sehari-hari secara alami."></textarea>
+    </div>
+    <div class="field">
+      <label>Penutup / Call to Action (1 baris = 1 pilihan)</label>
+      <textarea id="tpl-penutup" rows="3" placeholder="📞 Order sekarang, klik link di bio!&#10;🛒 Yuk pesan sebelum kehabisan!&#10;💬 Chat kami untuk info lebih lanjut"></textarea>
+    </div>
+    <div class="field">
+      <label>Hashtag (dipisah spasi atau baris baru, tanpa # juga boleh)</label>
+      <textarea id="tpl-hashtag" rows="2" placeholder="zadasyifa herbalalami jamutradisional sehatalami zadasyifanusantara"></textarea>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+        <label style="font-weight:400;font-size:12px;margin:0;">Jumlah hashtag dipakai per caption:</label>
+        <input type="number" id="tpl-hashtag-count" value="8" min="1" max="30" style="width:70px;padding:6px;">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-dark" onclick="saveCaptionTemplate()">💾 Simpan Template</button>
+      <button class="btn" onclick="previewCaptionTemplate()">🎲 Preview Acak</button>
+      <span id="tpl-status" style="font-size:12px;"></span>
+    </div>
+    <div id="tpl-preview" style="margin-top:10px;white-space:pre-wrap;background:#f8f8f6;border-radius:8px;padding:12px;font-size:13px;display:none;"></div>
+  </div>
+
   <div class="card">
 
     <div class="card-title">🎬 Upload Video Reels (Cloudinary)</div>
@@ -683,6 +718,7 @@ window.onload = () => {
   if(cn && !cn.value) cn.value='di5bhfcl2';
   renderHistory();
   initMultiAccount();
+  loadCaptionTemplate();
   const t=getIgToken(), id=getIgId();
   if(t&&id) document.getElementById('conn-st').innerHTML='<span style="color:#3b6d11">✅ Token tersimpan</span>';
   if(localStorage.getItem('ap_s-anthropic')) document.getElementById('anthropic-st').innerHTML='<span style="color:#3b6d11">✅ Tersimpan</span>';
@@ -2515,6 +2551,68 @@ async function fetchNextDriveFileData(){
   return { dataUrl, caption, fileId: next.id, name: next.name, remaining: media.length - posted.length - 1 };
 }
 
+// ===================== TEMPLATE CAPTION ACAK =====================
+function saveCaptionTemplate(){
+  ['tpl-judul','tpl-isi','tpl-penutup','tpl-hashtag','tpl-hashtag-count'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) localStorage.setItem('ap_'+id, el.value);
+  });
+  const st = document.getElementById('tpl-status');
+  st.innerHTML = '<span style="color:#3b6d11">✅ Template tersimpan!</span>';
+  setTimeout(()=>st.innerHTML='',2000);
+}
+
+function loadCaptionTemplate(){
+  ['tpl-judul','tpl-isi','tpl-penutup','tpl-hashtag','tpl-hashtag-count'].forEach(id=>{
+    const el = document.getElementById(id);
+    const v = localStorage.getItem('ap_'+id);
+    if(el && v) el.value = v;
+  });
+}
+
+function pickRandom(arr, n=1){
+  const shuffled = arr.slice().sort(()=>Math.random()-0.5);
+  return shuffled.slice(0, n);
+}
+
+// Fungsi inti: rakit caption acak dari template tersimpan. Return null kalau template belum diisi.
+function composeCaptionFromTemplate(){
+  const judulLines = (localStorage.getItem('ap_tpl-judul')||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  const isiLines = (localStorage.getItem('ap_tpl-isi')||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  const penutupLines = (localStorage.getItem('ap_tpl-penutup')||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  const hashtagRaw = (localStorage.getItem('ap_tpl-hashtag')||'').split(/[\s\n]+/).map(s=>s.trim()).filter(Boolean);
+  const hashCount = parseInt(localStorage.getItem('ap_tpl-hashtag-count')||'8', 10);
+
+  if(judulLines.length===0 && isiLines.length===0 && penutupLines.length===0 && hashtagRaw.length===0) return null;
+
+  const parts = [];
+  if(judulLines.length) parts.push(pickRandom(judulLines,1)[0]);
+  if(isiLines.length) parts.push(...pickRandom(isiLines, Math.min(2, isiLines.length)));
+  if(penutupLines.length) parts.push(pickRandom(penutupLines,1)[0]);
+
+  let caption = parts.join('\n\n');
+
+  if(hashtagRaw.length){
+    const tags = pickRandom(hashtagRaw, Math.min(hashCount, hashtagRaw.length))
+      .map(t => t.startsWith('#') ? t : '#'+t);
+    caption += '\n\n' + tags.join(' ');
+  }
+  return caption;
+}
+
+function previewCaptionTemplate(){
+  const cap = composeCaptionFromTemplate();
+  const box = document.getElementById('tpl-preview');
+  box.style.display = 'block';
+  box.textContent = cap || '⚠️ Isi minimal salah satu bagian (Judul/Isi/Penutup/Hashtag) dulu.';
+}
+
+function useCaptionTemplate(){
+  const cap = composeCaptionFromTemplate();
+  if(!cap){ alert('Template caption belum diisi. Isi dulu di tab Pengaturan → Template Caption Acak.'); return; }
+  document.getElementById('local-caption').value = cap;
+}
+
 async function fetchNextFromDrive(){
   const btn = document.getElementById('drive-fetch-btn');
   const status = document.getElementById('drive-fetch-status');
@@ -2530,7 +2628,7 @@ async function fetchNextFromDrive(){
     currentDriveFileId = result.fileId;
     const prev = document.getElementById('local-preview');
     prev.innerHTML = `<img src="${result.dataUrl}" style="max-height:200px;max-width:100%;border-radius:8px;object-fit:contain;">`;
-    if(result.caption) document.getElementById('local-caption').value = result.caption;
+    document.getElementById('local-caption').value = result.caption || composeCaptionFromTemplate() || '';
     status.innerHTML = `<span style="color:#3b6d11">✅ Diambil: <b>${result.name}</b> (${result.remaining} tersisa setelah ini)</span>`;
   }catch(e){
     status.innerHTML = `<span style="color:#E24B4A">❌ ${e.message}</span>`;
@@ -2745,7 +2843,7 @@ function startSchedule(){
           const result = await fetchNextDriveFileData();
           if(!result){ addSchedLog(`📭 ${minsToTime(t)} — Folder Drive habis, semua sudah pernah diposting`); return; }
           img = result.dataUrl;
-          cap = result.caption || `✨ Terjemahpedia — Solusi terjemahan profesional untuk semua kebutuhan Anda!\n\n#terjemahpedia #jasaterjemah #terjemahan`;
+          cap = result.caption || composeCaptionFromTemplate() || `✨ Cek produk terbaru kami!\n\n#promo #produkbaru`;
           driveFileId = result.fileId;
         } else {
           const cmdNow=document.getElementById('feed-cmd').value.trim();
