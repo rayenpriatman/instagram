@@ -124,7 +124,7 @@ label{display:block;font-size:12px;color:#555;margin-bottom:5px;font-weight:600;
   <div style="display:flex;gap:8px;margin-bottom:12px;">
     <button class="btn" id="mode-generate-btn" onclick="switchMode('generate')" style="flex:1;justify-content:center;background:#1B6B3A;color:#fff;font-size:12px;padding:9px;">🎨 Generate</button>
     <button class="btn" id="mode-upload-btn" onclick="switchMode('upload')" style="flex:1;justify-content:center;background:#f0f0f0;color:#555;font-size:12px;padding:9px;">📁 Upload File</button>
-    <button class="btn" id="mode-schedule-btn" onclick="switchMode('schedule')" style="flex:1;justify-content:center;background:#f0f0f0;color:#555;font-size:12px;padding:9px;">⏰ Jadwal</button>
+    <button class="btn" id="mode-schedule-btn" onclick="switchMode('schedule')" style="flex:1;justify-content:center;background:#f0f0f0;color:#555;font-size:12px;padding:9px;position:relative;">⏰ Jadwal <span id="sched-tab-dot" style="display:none;width:8px;height:8px;border-radius:50%;background:#4ade80;position:absolute;top:4px;right:8px;"></span></button>
   </div>
 
   <!-- ── MODE: GENERATE POSTER ── -->
@@ -161,38 +161,6 @@ label{display:block;font-size:12px;color:#555;margin-bottom:5px;font-weight:600;
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;"><input type="checkbox" id="post-to-ig" checked style="accent-color:#E4405F;">📸 Instagram</label>
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;"><input type="checkbox" id="post-to-threads" style="accent-color:#000;">🧵 Threads</label>
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;"><input type="checkbox" id="post-to-x" style="accent-color:#000;">🐦 X</label>
-      </div>
-    </div>
-
-    <!-- Jadwal Otomatis -->
-    <div style="background:#f0fff4;border:1.5px solid #b2dfdb;border-radius:10px;padding:10px;margin-bottom:10px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <div style="font-size:13px;font-weight:600;color:#1B6B3A;">⏰ Jadwal Otomatis</div>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-          <span style="font-size:12px;color:#555;" id="sched-toggle-label">Nonaktif</span>
-          <div onclick="toggleSchedule()" id="sched-toggle" style="width:44px;height:24px;border-radius:12px;background:#ccc;cursor:pointer;position:relative;transition:.3s;">
-            <div id="sched-knob" style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
-          </div>
-        </label>
-      </div>
-      <div id="sched-options">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-          <span style="font-size:12px;color:#555;">Posting</span>
-          <select id="sched-count" style="padding:4px 8px;border:1.5px solid #b2dfdb;border-radius:8px;font-size:13px;background:#fff;">
-            <option value="1">1x</option>
-            <option value="2">2x</option>
-            <option value="3" selected>3x</option>
-            <option value="4">4x</option>
-            <option value="5">5x</option>
-          </select>
-          <span style="font-size:12px;color:#555;">sehari, antara</span>
-          <input type="time" id="sched-start-time" value="07:00" style="padding:4px 8px;border:1.5px solid #b2dfdb;border-radius:8px;font-size:13px;background:#fff;">
-          <span style="font-size:12px;color:#555;">—</span>
-          <input type="time" id="sched-end-time" value="21:00" style="padding:4px 8px;border:1.5px solid #b2dfdb;border-radius:8px;font-size:13px;background:#fff;">
-        </div>
-        <div id="sched-times-mini" style="font-size:12px;color:#1B6B3A;line-height:1.8;"></div>
-        <div id="sched-status-mini" style="font-size:12px;margin-top:4px;"></div>
-        <div id="sched-log-mini" style="font-size:11px;color:#555;max-height:80px;overflow-y:auto;margin-top:4px;"></div>
       </div>
     </div>
 
@@ -260,7 +228,11 @@ label{display:block;font-size:12px;color:#555;margin-bottom:5px;font-weight:600;
       </div>
       <div class="field" style="margin:0;">
         <label>Rentang waktu</label>
-        <div style="background:#f0f7ff;border-radius:10px;padding:10px;font-size:13px;color:#1A3E8C;font-weight:600;text-align:center;border:1.5px solid #c8e0ff;height:42px;display:flex;align-items:center;justify-content:center;">08:00 — 21:00 🕐</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="time" id="sched-start-time" value="08:00" style="flex:1;padding:9px 6px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;">
+          <span style="color:#888;">—</span>
+          <input type="time" id="sched-end-time" value="21:00" style="flex:1;padding:9px 6px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;">
+        </div>
       </div>
     </div>
     <div style="background:#f8f9fa;border-radius:10px;padding:10px;margin-bottom:10px;">
@@ -271,6 +243,11 @@ label{display:block;font-size:12px;color:#555;margin-bottom:5px;font-weight:600;
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;"><input type="checkbox" id="sched-to-x" style="accent-color:#000;">🐦 X</label>
       </div>
     </div>
+    <div id="sched-active-banner" style="display:none;background:#1B6B3A;color:#fff;border-radius:10px;padding:12px;margin-bottom:12px;font-weight:700;font-size:14px;align-items:center;gap:8px;">
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#4ade80;animation:pulse-dot 1.5s infinite;"></span>
+      🟢 JADWAL SEDANG AKTIF — jangan tutup tab/browser ini
+    </div>
+    <style>@keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:0.3;}}</style>
     <div id="sched-preview" style="background:#f0fff4;border:1.5px solid #b2dfdb;border-radius:10px;padding:12px;margin-bottom:12px;display:none;">
       <div style="font-size:13px;font-weight:600;color:#1B6B3A;margin-bottom:6px;">📅 Jadwal hari ini:</div>
       <div id="sched-times" style="font-size:13px;color:#333;line-height:1.8;"></div>
@@ -2805,19 +2782,20 @@ function startSchedule(){
   const times=genRandomTimes(count,startMins,endMins);
   const future=times.filter(t=>t>nowMins);
 
-  // Update toggle UI
   schedActive=true;
-  const tog=document.getElementById('sched-toggle');
-  const knob=document.getElementById('sched-knob');
-  const lbl=document.getElementById('sched-toggle-label');
-  if(tog){tog.style.background='#1B6B3A';knob.style.left='22px';lbl.textContent='Aktif';}
-  document.getElementById('sched-options').style.display='block';
+
+  // Indikator status: tombol Start/Stop
+  document.getElementById('sched-start-btn').style.display='none';
+  document.getElementById('sched-stop-btn').style.display='flex';
+  document.getElementById('sched-active-banner').style.display='flex';
+  const dot=document.getElementById('sched-tab-dot'); if(dot) dot.style.display='block';
 
   // Tampilkan jadwal
-  const timesEl=document.getElementById('sched-times-mini');
+  document.getElementById('sched-preview').style.display='block';
+  const timesEl=document.getElementById('sched-times');
   if(timesEl) timesEl.innerHTML=times.map(t=>`<span style="margin-right:12px;${t<=nowMins?'color:#aaa':'color:#1B6B3A;font-weight:600'}">⏰ ${minsToTime(t)}${t<=nowMins?' ✓':''}</span>`).join('');
 
-  const statusEl=document.getElementById('sched-status-mini');
+  const statusEl=document.getElementById('sched-status');
   if(statusEl) statusEl.innerHTML=future.length>0
     ?`<span style="color:#1B6B3A;">✅ ${future.length} posting dijadwalkan (${startVal}–${endVal})</span>`
     :`<span style="color:#f44336;">Semua jadwal hari ini sudah lewat, reset besok</span>`;
@@ -2830,9 +2808,9 @@ function startSchedule(){
       if(!schedActive)return;
       addSchedLog(`⏰ ${minsToTime(t)} — Posting...`);
       try{
-        const toIG=document.getElementById('post-to-ig').checked;
-        const toTh=document.getElementById('post-to-threads').checked;
-        const toX=document.getElementById('post-to-x') ? document.getElementById('post-to-x').checked : false;
+        const toIG=document.getElementById('sched-to-ig').checked;
+        const toTh=document.getElementById('sched-to-threads').checked;
+        const toX=document.getElementById('sched-to-x') ? document.getElementById('sched-to-x').checked : false;
         const token=getIgToken();
         const threadsToken=localStorage.getItem('ap_s-threads-token')||getIgToken();
         const igId=getIgId();
@@ -2870,17 +2848,17 @@ function startSchedule(){
 function stopSchedule(){
   schedActive=false;
   schedTimers.forEach(t=>clearTimeout(t));schedTimers=[];
-  const tog=document.getElementById('sched-toggle');
-  const knob=document.getElementById('sched-knob');
-  const lbl=document.getElementById('sched-toggle-label');
-  if(tog){tog.style.background='#ccc';knob.style.left='2px';lbl.textContent='Nonaktif';}
-  const st=document.getElementById('sched-status-mini');
+  document.getElementById('sched-start-btn').style.display='flex';
+  document.getElementById('sched-stop-btn').style.display='none';
+  document.getElementById('sched-active-banner').style.display='none';
+  const dot=document.getElementById('sched-tab-dot'); if(dot) dot.style.display='none';
+  const st=document.getElementById('sched-status');
   if(st)st.innerHTML='<span style="color:#f44336;">⏹️ Jadwal dihentikan</span>';
   addSchedLog('⏹️ Jadwal dihentikan');
 }
 
 function addSchedLog(msg){
-  const log=document.getElementById('sched-log-mini');
+  const log=document.getElementById('sched-log');
   if(!log)return;
   const t=new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
   log.innerHTML=`<div>[${t}] ${msg}</div>`+log.innerHTML;
