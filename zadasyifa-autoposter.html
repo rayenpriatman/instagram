@@ -163,6 +163,7 @@ label{display:block;font-size:12px;color:#555;margin-bottom:5px;font-weight:600;
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;"><input type="checkbox" id="post-to-x" style="accent-color:#000;">🐦 X</label>
       </div>
     </div>
+    <div id="acc-multi-generate" style="background:#f8f9fa;border-radius:10px;padding:10px;margin-bottom:10px;"></div>
 
     <button class="btn btn-ig btn-full" onclick="runFeed()" id="feed-btn">🚀 Generate & Post</button>
   </div>
@@ -196,6 +197,7 @@ label{display:block;font-size:12px;color:#555;margin-bottom:5px;font-weight:600;
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;"><input type="checkbox" id="upload-to-x" style="accent-color:#000;">🐦 X</label>
       </div>
     </div>
+    <div id="acc-multi-upload" style="background:#f8f9fa;border-radius:10px;padding:10px;margin-bottom:10px;"></div>
     <button class="btn btn-ig btn-full" onclick="runUploadPost()" id="upload-post-btn">📤 Post Sekarang</button>
     <div id="upload-status" style="margin-top:8px;"></div>
   </div>
@@ -243,6 +245,7 @@ label{display:block;font-size:12px;color:#555;margin-bottom:5px;font-weight:600;
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;"><input type="checkbox" id="sched-to-x" style="accent-color:#000;">🐦 X</label>
       </div>
     </div>
+    <div id="acc-multi-schedule" style="background:#f8f9fa;border-radius:10px;padding:10px;margin-bottom:10px;"></div>
     <div id="sched-active-banner" style="display:none;background:#1B6B3A;color:#fff;border-radius:10px;padding:12px;margin-bottom:12px;font-weight:700;font-size:14px;align-items:center;gap:8px;">
       <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#4ade80;animation:pulse-dot 1.5s infinite;"></span>
       🟢 JADWAL SEDANG AKTIF — jangan tutup tab/browser ini
@@ -364,6 +367,7 @@ label{display:block;font-size:12px;color:#555;margin-bottom:5px;font-weight:600;
       </div>
       <p style="font-size:11px;color:#aaa;margin-top:8px;">Download gratis di <a href="https://pixabay.com/music" target="_blank" style="color:#185fa5;">pixabay.com/music</a> · Bisa tambah banyak lagu · Klik untuk pilih</p>
     </div>
+    <div id="acc-multi-reels" style="background:#f8f9fa;border-radius:10px;padding:10px;margin-bottom:14px;"></div>
     <button class="btn btn-ig btn-full" onclick="runReels()" id="reels-btn">🎬 Generate Video Reels</button>
   </div>
 
@@ -747,19 +751,22 @@ async function runFeed() {
     }
   }
 
-  // Step 4: Post ke Instagram
-  if(postIG_on && token && igId) {
-    setStep('fs-post','fd-post','ft-post','active','⏳','Posting ke Instagram...');
-    try{
-      await postIG(token,igId,feedPubUrl,feedCaption,'photo');
-      setStep('fs-post','fd-post','ft-post','done','✓','✅ Instagram berhasil!');
-      addHistory(cmd,feedImageUrl,'posted','feed');
-    }catch(e){
-      setStep('fs-post','fd-post','ft-post','err','✗','IG gagal: '+e.message);
-      document.getElementById('feed-post-btn').style.display='inline-flex';
+  // Step 4: Post ke Instagram (bisa ke beberapa akun sekaligus)
+  const igAccounts = postIG_on ? getAccountsToPostTo() : [];
+  let igResults = [];
+  if(postIG_on && igAccounts.length>0) {
+    setStep('fs-post','fd-post','ft-post','active','⏳',`Posting ke ${igAccounts.length} akun Instagram...`);
+    for(const acc of igAccounts){
+      try{ await postIG(acc.token,acc.igid,feedPubUrl,feedCaption,'photo'); igResults.push({acc,ok:true}); }
+      catch(e){ igResults.push({acc,ok:false,err:e.message}); }
     }
+    const okCount = igResults.filter(r=>r.ok).length;
+    if(okCount===igResults.length) setStep('fs-post','fd-post','ft-post','done','✓',`✅ Instagram berhasil ke ${okCount} akun!`);
+    else if(okCount>0) setStep('fs-post','fd-post','ft-post','done','!',`⚠️ Instagram: ${okCount}/${igResults.length} akun berhasil`);
+    else { setStep('fs-post','fd-post','ft-post','err','✗','Semua akun Instagram gagal'); document.getElementById('feed-post-btn').style.display='inline-flex'; }
+    addHistory(cmd,feedImageUrl,okCount>0?'posted':'failed','feed');
   } else if(postIG_on) {
-    setStep('fs-post','fd-post','ft-post','err','!','Atur token Instagram di Pengaturan');
+    setStep('fs-post','fd-post','ft-post','err','!','Pilih/atur minimal 1 akun Instagram');
   } else {
     setStep('fs-post','fd-post','ft-post','done','-','Skip Instagram');
   }
@@ -785,7 +792,7 @@ async function runFeed() {
   }
 
   // Status akhir
-  const igOk = postIG_on && token && igId;
+  const igOk = postIG_on && igResults.some(r=>r.ok);
   const thrOk = postThreads_on && threadsToken && threadsId;
   const xOk = postX_on && localStorage.getItem('ap_s-x-api-key');
 
@@ -808,6 +815,10 @@ async function runFeed() {
   if(igOk || thrOk || xOk) {
     document.getElementById('feed-status').innerHTML=`<div class="status-box status-ok">✅ Selesai diposting ke ${[postIG_on?'Instagram':'',postThreads_on?'Threads':''].filter(Boolean).join(' & ')}!</div>`;
   }
+  if(igResults.length>1){
+    document.getElementById('feed-status').innerHTML += '<div style="font-size:12px;margin-top:6px;color:#555;">'
+      + igResults.map(r=>`${r.ok?'✅':'❌'} ${r.acc.name}${r.ok?'':': '+r.err}`).join('<br>') + '</div>';
+  }
 
   resetBtn('feed-btn','🚀 Generate & Post');
 }
@@ -819,17 +830,31 @@ function showFeedResult() {
 }
 
 async function manualPostFeed() {
-  const token=getIgToken(), igId=getIgId();
-  if(!token||!igId){alert('Atur token di Pengaturan');return;}
+  const accounts = getAccountsToPostTo();
+  if(accounts.length===0){alert('Atur/pilih minimal 1 akun di Pengaturan');return;}
   const btn=document.getElementById('feed-post-btn');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Posting...';
   document.getElementById('feed-status').innerHTML='<div class="status-box status-load">⏳ Memposting...</div>';
   try{
     // Upload dulu kalau belum ada pubUrl
     if(!feedPubUrl && feedImageUrl) feedPubUrl = await uploadImgBB(feedImageUrl);
-    await postIG(token,igId,feedPubUrl,feedCaption,'photo');
-    document.getElementById('feed-status').innerHTML='<div class="status-box status-ok">✅ Berhasil diposting ke Feed!</div>';
-    addHistory(document.getElementById('feed-cmd').value,feedImageUrl,'posted','feed');
+    const results=[];
+    for(const acc of accounts){
+      try{ await postIG(acc.token,acc.igid,feedPubUrl,feedCaption,'photo'); results.push({acc,ok:true}); }
+      catch(e){ results.push({acc,ok:false,err:e.message}); }
+    }
+    const okCount = results.filter(r=>r.ok).length;
+    let html = okCount===results.length
+      ? `<div class="status-box status-ok">✅ Berhasil diposting ke ${okCount} akun Feed!</div>`
+      : okCount>0
+        ? `<div class="status-box status-ok">⚠️ ${okCount}/${results.length} akun berhasil</div>`
+        : `<div class="status-box status-err">❌ Semua akun gagal</div>`;
+    if(results.length>1){
+      html += '<div style="font-size:12px;margin-top:6px;color:#555;">'
+        + results.map(r=>`${r.ok?'✅':'❌'} ${r.acc.name}${r.ok?'':': '+r.err}`).join('<br>') + '</div>';
+    }
+    document.getElementById('feed-status').innerHTML = html;
+    addHistory(document.getElementById('feed-cmd').value,feedImageUrl,okCount>0?'posted':'failed','feed');
   }catch(e){ document.getElementById('feed-status').innerHTML='<div class="status-box status-err">❌ '+e.message+'</div>'; }
   btn.disabled=false; btn.innerHTML='📸 Post ke Feed';
 }
@@ -871,8 +896,9 @@ async function runReels() {
 
   showReelsResult();
 
-  // Step 3 & 4: Upload + Post
-  if(token && igId) {
+  // Step 3 & 4: Upload + Post (bisa ke beberapa akun sekaligus)
+  const reelsAccounts = getAccountsToPostTo();
+  if(reelsAccounts.length>0) {
     setStep('rs-upload','rd-upload','rt-upload','active','⏳',videoIsMP4?'Upload video MP4 ke Cloudinary...':'Upload & convert ke MP4 via Cloudinary...');
     let pubUrl='';
     try{
@@ -885,22 +911,35 @@ async function runReels() {
       resetBtn('reels-btn','🎬 Generate Video Reels'); return;
     }
 
-    setStep('rs-post','rd-post','rt-post','active','⏳','Posting ke Reels (menunggu processing video 30-60 detik)...');
-    try{
-      await postIG(token,igId,pubUrl,reelsCaption,'video');
+    setStep('rs-post','rd-post','rt-post','active','⏳',`Posting ke ${reelsAccounts.length} akun Reels (menunggu processing video 30-60 detik)...`);
+    const results=[];
+    for(const acc of reelsAccounts){
+      try{ await postIG(acc.token,acc.igid,pubUrl,reelsCaption,'video'); results.push({acc,ok:true}); }
+      catch(e){ results.push({acc,ok:false,err:e.message}); }
+    }
+    const okCount = results.filter(r=>r.ok).length;
+    if(okCount===results.length){
       setStep('rs-post','rd-post','rt-post','done','✓','Berhasil diposting ke Reels! 🎉');
-      document.getElementById('reels-status').innerHTML='<div class="status-box status-ok">✅ Berhasil diposting ke Reels Instagram!</div>';
-      addHistory(cmd,'',  'posted','reels');
-    }catch(e){
-      setStep('rs-post','rd-post','rt-post','err','✗','Gagal: '+e.message);
-      document.getElementById('reels-status').innerHTML='<div class="status-box status-err">❌ '+e.message+'. Coba download dan upload manual.</div>';
+      document.getElementById('reels-status').innerHTML=`<div class="status-box status-ok">✅ Berhasil diposting ke Reels di ${okCount} akun!</div>`;
+      addHistory(cmd,'','posted','reels');
+    } else if(okCount>0){
+      setStep('rs-post','rd-post','rt-post','done','!',`⚠️ ${okCount}/${results.length} akun berhasil`);
+      document.getElementById('reels-status').innerHTML=`<div class="status-box status-ok">⚠️ Reels: ${okCount}/${results.length} akun berhasil</div>`;
+      addHistory(cmd,'','posted','reels');
+    } else {
+      setStep('rs-post','rd-post','rt-post','err','✗','Semua akun gagal');
+      document.getElementById('reels-status').innerHTML='<div class="status-box status-err">❌ Semua akun gagal. Coba download dan upload manual.</div>';
       document.getElementById('reels-post-btn').style.display='none';
       addHistory(cmd,'','failed','reels');
     }
+    if(results.length>1){
+      document.getElementById('reels-status').innerHTML += '<div style="font-size:12px;margin-top:6px;color:#555;">'
+        + results.map(r=>`${r.ok?'✅':'❌'} ${r.acc.name}${r.ok?'':': '+r.err}`).join('<br>') + '</div>';
+    }
   } else {
     setStep('rs-upload','rd-upload','rt-upload','err','!','Token belum diatur');
-    setStep('rs-post','rd-post','rt-post','err','!','Atur token di Pengaturan');
-    document.getElementById('reels-status').innerHTML='<div class="status-box status-err">⚠️ Atur token di Pengaturan, atau download video dan upload manual ke Instagram.</div>';
+    setStep('rs-post','rd-post','rt-post','err','!','Pilih/atur minimal 1 akun di Pengaturan');
+    document.getElementById('reels-status').innerHTML='<div class="status-box status-err">⚠️ Pilih/atur akun di Pengaturan, atau download video dan upload manual ke Instagram.</div>';
   }
 
   resetBtn('reels-btn','🎬 Generate Video Reels');
@@ -915,16 +954,30 @@ function showReelsResult() {
 }
 
 async function manualPostReels() {
-  const token=getIgToken(), igId=getIgId();
-  if(!token||!igId){alert('Atur token di Pengaturan');return;}
+  const accounts = getAccountsToPostTo();
+  if(accounts.length===0){alert('Atur/pilih minimal 1 akun di Pengaturan');return;}
   const btn=document.getElementById('reels-post-btn');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Uploading & Posting...';
   document.getElementById('reels-status').innerHTML='<div class="status-box status-load">⏳ Upload & posting Reels...</div>';
   try{
     const pubUrl=await uploadCloudinary(reelsBlobUrl);
-    await postIG(token,igId,pubUrl,reelsCaption,'video');
-    document.getElementById('reels-status').innerHTML='<div class="status-box status-ok">✅ Berhasil diposting ke Reels!</div>';
-    addHistory(document.getElementById('reels-cmd').value,'','posted','reels');
+    const results=[];
+    for(const acc of accounts){
+      try{ await postIG(acc.token,acc.igid,pubUrl,reelsCaption,'video'); results.push({acc,ok:true}); }
+      catch(e){ results.push({acc,ok:false,err:e.message}); }
+    }
+    const okCount = results.filter(r=>r.ok).length;
+    let html = okCount===results.length
+      ? `<div class="status-box status-ok">✅ Berhasil diposting ke Reels di ${okCount} akun!</div>`
+      : okCount>0
+        ? `<div class="status-box status-ok">⚠️ ${okCount}/${results.length} akun berhasil</div>`
+        : `<div class="status-box status-err">❌ Semua akun gagal</div>`;
+    if(results.length>1){
+      html += '<div style="font-size:12px;margin-top:6px;color:#555;">'
+        + results.map(r=>`${r.ok?'✅':'❌'} ${r.acc.name}${r.ok?'':': '+r.err}`).join('<br>') + '</div>';
+    }
+    document.getElementById('reels-status').innerHTML = html;
+    addHistory(document.getElementById('reels-cmd').value,'',okCount>0?'posted':'failed','reels');
   }catch(e){ document.getElementById('reels-status').innerHTML='<div class="status-box status-err">❌ '+e.message+'</div>'; }
   btn.disabled=false; btn.innerHTML='🎬 Post ke Reels';
 }
@@ -2718,9 +2771,7 @@ async function runUploadPost() {
   if(!localFileData) { alert('Upload gambar dulu!'); return; }
   const caption = document.getElementById('local-caption').value.trim();
   if(!caption) { alert('Isi caption dulu atau klik Auto Caption!'); return; }
-  const token = getIgToken();
   const threadsToken = localStorage.getItem('ap_s-threads-token') || getIgToken();
-  const igId = getIgId();
   const threadsId = localStorage.getItem('ap_s-threads-id');
   const toIG = document.getElementById('upload-to-ig').checked;
   const toThreads = document.getElementById('upload-to-threads').checked;
@@ -2733,10 +2784,17 @@ async function runUploadPost() {
     // Upload gambar
     const pubUrl = await uploadImgBB(localFileData);
     let results = [];
-    // Post ke Instagram
-    if(toIG && token && igId) {
-      try { await postIG(token,igId,pubUrl,caption,'photo'); results.push('✅ Instagram'); }
-      catch(e) { results.push('❌ Instagram: '+e.message); }
+    // Post ke Instagram (bisa ke beberapa akun sekaligus)
+    if(toIG) {
+      const igAccounts = getAccountsToPostTo();
+      if(igAccounts.length>0){
+        for(const acc of igAccounts){
+          try { await postIG(acc.token,acc.igid,pubUrl,caption,'photo'); results.push(`✅ Instagram (${acc.name})`); }
+          catch(e) { results.push(`❌ Instagram (${acc.name}): `+e.message); }
+        }
+      } else {
+        results.push('❌ Instagram: pilih/atur minimal 1 akun di Pengaturan');
+      }
     }
     // Post ke Threads
     if(toThreads && threadsToken && threadsId) {
@@ -2852,9 +2910,8 @@ function startSchedule(){
         const toIG=document.getElementById('sched-to-ig').checked;
         const toTh=document.getElementById('sched-to-threads').checked;
         const toX=document.getElementById('sched-to-x') ? document.getElementById('sched-to-x').checked : false;
-        const token=getIgToken();
+        const igAccounts = toIG ? getAccountsToPostTo() : [];
         const threadsToken=localStorage.getItem('ap_s-threads-token')||getIgToken();
-        const igId=getIgId();
         const threadsId=localStorage.getItem('ap_s-threads-id');
 
         let cap, img, driveFileId=null;
@@ -2871,7 +2928,16 @@ function startSchedule(){
         }
 
         const pub=await uploadImgBB(img);
-        if(toIG&&token&&igId){await postIG(token,igId,pub,cap,'photo');addSchedLog(`✅ ${minsToTime(t)} Instagram oke`);}
+        if(toIG){
+          if(igAccounts.length>0){
+            for(const acc of igAccounts){
+              try{ await postIG(acc.token,acc.igid,pub,cap,'photo'); addSchedLog(`✅ ${minsToTime(t)} Instagram (${acc.name}) oke`); }
+              catch(e){ addSchedLog(`❌ ${minsToTime(t)} Instagram (${acc.name}): ${e.message}`); }
+            }
+          } else {
+            addSchedLog(`⚠️ ${minsToTime(t)} — Tidak ada akun Instagram yang dipilih/diatur`);
+          }
+        }
         if(toTh&&threadsToken&&threadsId){const tc=schedSource==='drive'?cap:await genCaption(document.getElementById('feed-cmd').value.trim(),'threads').catch(()=>cap);await postToThreads(threadsToken,threadsId,tc,pub);addSchedLog(`✅ ${minsToTime(t)} Threads oke`);}
         if(toX){try{await postToX(cap.substring(0,270),pub);addSchedLog(`✅ ${minsToTime(t)} X oke`);}catch(e){addSchedLog(`❌ ${minsToTime(t)} X: ${e.message}`);}}
         if(driveFileId) markDrivePosted(driveFileId);
@@ -3199,7 +3265,7 @@ function addAccount(){
   document.getElementById('acc-igid').value='';
   document.getElementById('acc-token').value='';
   if(getActiveIdx()===null) setActiveIdx(list.length-1);
-  renderAccountList(); renderAccountSwitcher();
+  renderAccountList(); renderAccountSwitcher(); renderAllAccountMultiSelectors();
   st.innerHTML='<span style="color:#3b6d11">✅ Akun ditambahkan</span>';
   setTimeout(()=>st.innerHTML='',2000);
 }
@@ -3207,12 +3273,17 @@ function addAccount(){
 function deleteAccount(i){
   if(!confirm('Hapus akun ini?')) return;
   const list = getAccounts();
+  const removed = list[i];
   list.splice(i,1);
   saveAccounts(list);
   const active = getActiveIdx();
   if(active===i) localStorage.removeItem('ap_active_account_idx');
   else if(active!==null && active>i) localStorage.setItem('ap_active_account_idx', String(active-1));
-  renderAccountList(); syncActiveAccountToFields(); renderAccountSwitcher();
+  if(removed){
+    const ids = getSelectedAccountIds().filter(x=>x!==removed.igid);
+    saveSelectedAccountIds(ids);
+  }
+  renderAccountList(); syncActiveAccountToFields(); renderAccountSwitcher(); renderAllAccountMultiSelectors();
 }
 
 function renderAccountList(){
@@ -3264,6 +3335,65 @@ function initMultiAccount(){
   renderAccountList();
   renderAccountSwitcher();
   syncActiveAccountToFields();
+  renderAllAccountMultiSelectors();
+}
+
+// ===================== MULTI-AKUN POSTING (pilih beberapa akun sekaligus) =====================
+function getSelectedAccountIds(){
+  try{ return JSON.parse(localStorage.getItem('ap_selected_accounts')||'[]'); }
+  catch(e){ return []; }
+}
+function saveSelectedAccountIds(ids){ localStorage.setItem('ap_selected_accounts', JSON.stringify(ids)); }
+
+function toggleSelectedAccount(igid){
+  let ids = getSelectedAccountIds();
+  if(ids.includes(igid)) ids = ids.filter(x=>x!==igid);
+  else ids.push(igid);
+  saveSelectedAccountIds(ids);
+  renderAllAccountMultiSelectors();
+}
+
+// Daftar akun yang akan diposting untuk 1 aksi (Generate/Upload/Reels/Jadwal).
+// Kalau user centang 1+ akun di checklist -> pakai itu.
+// Kalau tidak ada yang dicentang -> fallback ke akun aktif tunggal (perilaku lama).
+function getAccountsToPostTo(){
+  const list = getAccounts();
+  const ids = getSelectedAccountIds();
+  const checked = list.filter(acc => ids.includes(acc.igid));
+  if(checked.length > 0) return checked;
+  const t = getIgToken(), id = getIgId();
+  if(t && id){
+    const activeIdx = getActiveIdx();
+    const name = (activeIdx!==null && list[activeIdx]) ? list[activeIdx].name : 'Akun aktif';
+    return [{name, igid:id, token:t}];
+  }
+  return [];
+}
+
+const ACC_MULTI_CONTAINERS = ['acc-multi-generate','acc-multi-upload','acc-multi-schedule','acc-multi-reels'];
+function renderAccountMultiSelector(containerId){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  const list = getAccounts();
+  if(list.length===0){
+    el.innerHTML = '<div style="font-size:11px;color:#aaa;">Belum ada akun IG tersimpan. Tambah akun di ⚙️ Pengaturan → Multi Akun.</div>';
+    return;
+  }
+  const ids = getSelectedAccountIds();
+  el.innerHTML = '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:#333;">📸 Posting ke akun IG:</div>'
+    + '<div style="display:flex;flex-direction:column;gap:6px;">'
+    + list.map(acc=>{
+        const checked = ids.includes(acc.igid) ? 'checked' : '';
+        return `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">`
+          + `<input type="checkbox" ${checked} onchange="toggleSelectedAccount('${acc.igid}')">`
+          + `${acc.name} <span style="opacity:.55;font-size:11px;">${acc.igid}</span>`
+          + `</label>`;
+      }).join('')
+    + '</div>'
+    + '<p style="font-size:11px;color:#aaa;margin-top:6px;">Centang 1 atau lebih akun untuk posting ke banyak akun sekaligus. Kalau tidak ada yang dicentang, otomatis pakai akun aktif (📸 Posting sebagai) saja.</p>';
+}
+function renderAllAccountMultiSelectors(){
+  ACC_MULTI_CONTAINERS.forEach(renderAccountMultiSelector);
 }
 
 function saveSettings(){
